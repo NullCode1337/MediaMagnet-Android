@@ -73,8 +73,6 @@ import dev.nullcode.mediamagnet.data.ServerSettings
 import dev.nullcode.mediamagnet.ui.AppViewModel
 import dev.nullcode.mediamagnet.ui.JobUi
 import dev.nullcode.mediamagnet.ui.components.StatePill
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
@@ -104,20 +102,15 @@ fun DownloadsScreen(
     var backend by rememberSaveable { mutableStateOf<String?>(null) }
     var cookieDomain by rememberSaveable { mutableStateOf("") }
     var cookieContent by rememberSaveable { mutableStateOf("") }
-    var draftJson by rememberSaveable { mutableStateOf<String?>(null) }
+    var draft by remember { mutableStateOf(localSettings) }
     var showOptions by rememberSaveable { mutableStateOf(false) }
 
-    val draft = remember(draftJson, localSettings) {
-        draftJson?.let { runCatching { jobJson.decodeFromString<ServerSettings>(it) }.getOrNull() }
-            ?: localSettings
+    val sorted = remember(jobs) {
+        val ordered = jobs.values.sortedByDescending { it.createdAtMs }
+        ordered.filter { it.isRunning || it.isPaused } to
+            ordered.filterNot { it.isRunning || it.isPaused }
     }
-    fun updateDraft(next: ServerSettings) {
-        draftJson = jobJson.encodeToString(next)
-    }
-
-    val sorted = jobs.values.sortedByDescending { it.createdAtMs }
-    val active = sorted.filter { it.isRunning || it.isPaused }
-    val recent = sorted.filterNot { it.isRunning || it.isPaused }
+    val (active, recent) = sorted
 
     fun start() {
         viewModel.startDownload(
@@ -160,7 +153,7 @@ fun DownloadsScreen(
             )
         }
 
-        if (sorted.isEmpty()) {
+        if (active.isEmpty() && recent.isEmpty()) {
             item { EmptyState() }
         } else {
             if (active.isNotEmpty()) {
@@ -203,7 +196,7 @@ fun DownloadsScreen(
     if (showOptions) {
         OptionsSheet(
             draft = draft,
-            updateDraft = ::updateDraft,
+            updateDraft = { draft = it },
             backend = backend,
             onBackendChange = { backend = it },
             cookieDomain = cookieDomain,
@@ -499,7 +492,9 @@ private fun JobCard(
     onCancel: () -> Unit,
 ) {
     val preview = remember(job.url) { previewFor(job.url) }
-    val created = if (job.createdAtMs > 0) formatTime(job.createdAtMs) else null
+    val created = remember(job.createdAtMs) {
+        if (job.createdAtMs > 0) formatTime(job.createdAtMs) else null
+    }
 
     Card(
         shape = MaterialTheme.shapes.large,
@@ -934,8 +929,10 @@ private fun readClipboard(context: Context): String? {
     return clip.getItemAt(0).coerceToText(context)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
 }
 
-private fun formatTime(ms: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(ms))
+private val timeFormat: DateFormat =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+
+private fun formatTime(ms: Long): String = synchronized(timeFormat) { timeFormat.format(Date(ms)) }
 
 private val jobJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 

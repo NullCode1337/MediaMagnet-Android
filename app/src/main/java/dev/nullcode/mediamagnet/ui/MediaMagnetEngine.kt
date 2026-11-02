@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,7 +102,15 @@ class MediaMagnetEngine private constructor(context: Context) {
     init {
         scope.launch {
             cleanupPendingWrites()
-            store.flow.collect(::applyPrefs)
+        }
+        scope.launch {
+            store.flow.collect { value ->
+                _prefs.value = value
+                _settings.value = value.settings
+            }
+        }
+        scope.launch {
+            store.connectionFlow.collect { (baseUrl, token) -> applyConnection(baseUrl, token) }
         }
         scope.launch {
             combine(_jobs, _transfers) { jobs, transfers ->
@@ -138,10 +147,8 @@ class MediaMagnetEngine private constructor(context: Context) {
         }
     }
 
-    private fun applyPrefs(value: AppPrefs) {
-        _prefs.value = value
-        _settings.value = value.settings
-        val next = ApiClient.create(value.baseUrl, value.token)
+    private fun applyConnection(baseUrl: String, token: String) {
+        val next = ApiClient.create(baseUrl, token)
         if (next?.key == client?.key) return
 
         client = next
@@ -444,10 +451,12 @@ class MediaMagnetEngine private constructor(context: Context) {
                 val health = target.health()
                 _health.value = health
                 _connection.value = Connection.Online(health.version)
-                refreshJobs(target)
-                _cookies.value = target.listCookies()
-                _tools.value = target.listTools()
-                refreshPaths(target)
+                coroutineScope {
+                    launch { runCatching { refreshJobs(target) } }
+                    launch { runCatching { _tools.value = target.listTools() } }
+                    launch { runCatching { _cookies.value = target.listCookies() } }
+                    launch { runCatching { refreshPaths(target) } }
+                }
             } catch (error: Exception) {
                 _connection.value = Connection.Offline(error.describe())
                 emit(error.describe(), isError = true)

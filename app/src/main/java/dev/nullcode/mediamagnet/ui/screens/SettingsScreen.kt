@@ -54,9 +54,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -70,6 +72,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import dev.nullcode.mediamagnet.data.AccentMode
 import dev.nullcode.mediamagnet.data.ServerSettings
 import dev.nullcode.mediamagnet.data.SiteArgument
@@ -194,8 +199,10 @@ fun ConnectionSettingsScreen(viewModel: AppViewModel) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
 
-    var baseUrl by rememberSaveable(prefs.baseUrl) { mutableStateOf(prefs.baseUrl) }
-    var token by rememberSaveable(prefs.token) { mutableStateOf(prefs.token) }
+    var baseUrl by rememberSaveable { mutableStateOf(prefs.baseUrl) }
+    var token by rememberSaveable { mutableStateOf(prefs.token) }
+    LaunchedEffect(prefs.baseUrl) { baseUrl = prefs.baseUrl }
+    LaunchedEffect(prefs.token) { token = prefs.token }
 
     val status = when (val state = connection) {
         is Connection.Online -> "Connected to MediaMagnet ${state.version}"
@@ -644,7 +651,8 @@ private fun ServerSettingsPage(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var confirmReset by rememberSaveable { mutableStateOf(false) }
-    var draft by remember(settings) { mutableStateOf(settings) }
+    var draft by rememberSaveable(stateSaver = SettingsSaver) { mutableStateOf(settings) }
+    LaunchedEffect(settings) { draft = settings }
     val dirty = draft != settings
 
     LazyColumn(
@@ -707,6 +715,13 @@ private fun ServerSettingsPage(
         )
     }
 }
+
+private val draftJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+
+private val SettingsSaver = Saver<ServerSettings, String>(
+    save = { draftJson.encodeToString(it) },
+    restore = { runCatching { draftJson.decodeFromString<ServerSettings>(it) }.getOrNull() },
+)
 
 private fun preferredFolderLabel(treeUri: String?): String {
     if (treeUri == null) return "Default: internal storage Downloads/MediaMagnet"

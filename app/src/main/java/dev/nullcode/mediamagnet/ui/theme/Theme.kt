@@ -32,6 +32,9 @@ private val AppShapes = Shapes(
 const val DefaultAccentHue = 322f
 val supportsDynamicColor: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
+private val AppMotionScheme: MotionScheme = MotionScheme.expressive()
+private val AppTypography: Typography = Typography()
+
 @Composable
 fun MediaMagnetTheme(
     themeMode: String = ThemeMode.System,
@@ -50,9 +53,9 @@ fun MediaMagnetTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
+        motionScheme = AppMotionScheme,
         shapes = AppShapes,
-        typography = Typography(),
+        typography = AppTypography,
         content = content,
     )
 }
@@ -67,7 +70,7 @@ private fun rememberColorScheme(
     val context = LocalContext.current
     val useSystemAccent = accentMode == AccentMode.System
 
-    return remember(darkTheme, amoled, accentMode, accentHue, context) {
+    return remember(darkTheme, amoled, useSystemAccent, accentHue, context) {
         val dynamic = useSystemAccent && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         when {
             dynamic && darkTheme -> dynamicDarkColorScheme(context).withAmoled(amoled)
@@ -95,9 +98,9 @@ fun MediaMagnetPreviewTheme(content: @Composable () -> Unit) {
     val palettes = remember { AppPalettes(DefaultAccentHue, monochrome = false) }
     MaterialTheme(
         colorScheme = palettes.lightScheme(),
-        motionScheme = MotionScheme.expressive(),
+        motionScheme = AppMotionScheme,
         shapes = AppShapes,
-        typography = Typography(),
+        typography = AppTypography,
         content = content,
     )
 }

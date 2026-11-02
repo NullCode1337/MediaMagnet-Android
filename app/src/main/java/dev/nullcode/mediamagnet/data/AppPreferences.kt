@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
@@ -38,15 +39,21 @@ class AppPreferences(context: Context) {
     private val store = context.applicationContext.dataStore
     private val json = Json { ignoreUnknownKeys = true }
 
-    val flow: Flow<AppPrefs> = store.data.map { prefs ->
-        AppPrefs(
-            baseUrl = prefs[BASE_URL].orEmpty(),
-            token = prefs[TOKEN].orEmpty(),
-            treeUri = prefs[TREE_URI],
-            history = decodeHistory(prefs[HISTORY]),
-            settings = decodeSettings(prefs[SETTINGS]),
-        )
-    }
+    val flow: Flow<AppPrefs> = store.data
+        .map(::snapshot)
+        .distinctUntilChanged()
+
+    val connectionFlow: Flow<Pair<String, String>> = store.data
+        .map { it[BASE_URL].orEmpty() to it[TOKEN].orEmpty() }
+        .distinctUntilChanged()
+
+    private fun snapshot(prefs: Preferences) = AppPrefs(
+        baseUrl = prefs[BASE_URL].orEmpty(),
+        token = prefs[TOKEN].orEmpty(),
+        treeUri = prefs[TREE_URI],
+        history = decodeHistory(prefs[HISTORY]),
+        settings = decodeSettings(prefs[SETTINGS]),
+    )
 
     suspend fun setBaseUrl(value: String) {
         store.edit { it[BASE_URL] = value.trim() }

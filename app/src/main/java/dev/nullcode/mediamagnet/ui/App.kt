@@ -1,11 +1,15 @@
 package dev.nullcode.mediamagnet.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,13 +53,16 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -81,15 +88,17 @@ import dev.nullcode.mediamagnet.ui.screens.YtDlpSettingsScreen
 private data class Destination(val route: String, val label: String, val icon: ImageVector)
 
 private val destinations = listOf(
-    Destination("downloads", "Downloads", Icons.Rounded.Download),
+    Destination(START_ROUTE, "Downloads", Icons.Rounded.Download),
     Destination("history", "History", Icons.Rounded.History),
     Destination("settings", "Settings", Icons.Rounded.Settings),
 )
 
+private const val START_ROUTE = "downloads"
 private val IconSlot = 20.dp
 private val IconGap = 8.dp
 private val ItemPadding = 16.dp
 private val ItemGap = 2.dp
+private const val NavFadeMs = 140
 
 private fun titleFor(route: String): String = when (route) {
     "downloads" -> "Downloads"
@@ -112,9 +121,8 @@ private fun titleFor(route: String): String = when (route) {
 fun MediaMagnetApp(viewModel: AppViewModel) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
-    val transfers by viewModel.transfers.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route ?: "downloads"
+    val currentRoute = backStackEntry?.destination?.route ?: START_ROUTE
     val topLevel = destinations.any { it.route == currentRoute }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -126,7 +134,7 @@ fun MediaMagnetApp(viewModel: AppViewModel) {
 
     Scaffold(
         topBar = {
-            if (currentRoute == "downloads") {
+            if (currentRoute == START_ROUTE) {
                 TopAppBar(
                     title = {},
                     actions = {
@@ -187,12 +195,19 @@ fun MediaMagnetApp(viewModel: AppViewModel) {
                 .padding(padding)
                 .nestedScroll(scrollBehavior.nestedScrollConnection),
         ) {
-            TransferBanner(transfers.values)
-            AppNavHost(navController, viewModel)
+            TransfersHeader(viewModel)
+            AppNavHost(navController, viewModel, Modifier.weight(1f))
         }
     }
 }
 
+@Composable
+private fun TransfersHeader(viewModel: AppViewModel) {
+    val transfers by viewModel.transfers.collectAsStateWithLifecycle()
+    TransferBanner(transfers.values)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PillNavigationBar(
     currentRoute: String,
@@ -223,12 +238,12 @@ private fun PillNavigationBar(
     }
 
     val progresses = destinations.indices.map { index ->
-        val progress by animateFloatAsState(
+        val raw by animateFloatAsState(
             targetValue = if (index == selectedIndex) 1f else 0f,
             animationSpec = revealSpec,
             label = "pillProgress$index",
         )
-        progress
+        raw.coerceIn(0f, 1f)
     }
 
     val itemWidths = destinations.indices.map { index ->
@@ -243,7 +258,7 @@ private fun PillNavigationBar(
     val pillRight = destinations.indices.fold(0.dp) { acc, i ->
         acc + (itemLefts[i] + itemWidths[i]) * progresses[i]
     } / weight
-    val pillWidth = pillRight - pillLeft
+    val pillWidth = (pillRight - pillLeft).coerceAtLeast(0.dp)
 
     val pillColor = MaterialTheme.colorScheme.secondaryContainer
     val selectedContent = MaterialTheme.colorScheme.onSecondaryContainer
@@ -277,40 +292,80 @@ private fun PillNavigationBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 destinations.forEachIndexed { index, destination ->
-                    val selected = index == selectedIndex
-                    val progress = progresses[index]
-
-                    Row(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { onSelect(destination.route) }
-                            .padding(horizontal = ItemPadding, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (progress > 0f) {
-                            Icon(
-                                imageVector = destination.icon,
-                                contentDescription = null,
-                                tint = selectedContent,
-                                modifier = Modifier
-                                    .size(IconSlot * progress)
-                                    .alpha(progress),
-                            )
-                            Spacer(Modifier.width(IconGap * progress))
-                        }
-                        Text(
-                            text = destination.label,
-                            style = labelStyle,
-                            color = if (selected) selectedContent else idleContent,
-                        )
-                    }
+                    PillTab(
+                        destination = destination,
+                        progress = progresses[index],
+                        labelStyle = labelStyle,
+                        idleContent = idleContent,
+                        selectedContent = selectedContent,
+                        onSelect = { onSelect(destination.route) },
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PillTab(
+    destination: Destination,
+    progress: Float,
+    labelStyle: TextStyle,
+    idleContent: Color,
+    selectedContent: Color,
+    onSelect: () -> Unit,
+) {
+    val motion = MaterialTheme.motionScheme
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = motion.fastSpatialSpec<Float>(),
+        label = "pillPress",
+    )
+    val contentColor = lerp(idleContent, selectedContent, progress)
+
+    Row(
+        modifier = Modifier
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                onClick = onSelect,
+            )
+            .padding(horizontal = ItemPadding, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (progress > 0f) {
+            Icon(
+                imageVector = destination.icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier
+                    .size(IconSlot * progress)
+                    .alpha(progress),
+            )
+            Spacer(Modifier.width(IconGap * progress))
+        }
+        Text(
+            text = destination.label,
+            style = labelStyle,
+            color = contentColor,
+        )
+    }
+}
+
 private fun NavHostController.navigateTopLevel(route: String) {
+    if (route != START_ROUTE &&
+        popBackStack(route, inclusive = false, saveState = true)
+    ) {
+        return
+    }
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
@@ -319,31 +374,29 @@ private fun NavHostController.navigateTopLevel(route: String) {
 }
 
 @Composable
-private fun AppNavHost(navController: NavHostController, viewModel: AppViewModel) {
-    val motion = MaterialTheme.motionScheme
-    val enterEffects = motion.defaultEffectsSpec<Float>()
-    val exitEffects = motion.fastEffectsSpec<Float>()
-    val enterSpatial = motion.defaultSpatialSpec<IntOffset>()
-    val exitSpatial = motion.fastSpatialSpec<IntOffset>()
-
+private fun AppNavHost(
+    navController: NavHostController,
+    viewModel: AppViewModel,
+    modifier: Modifier = Modifier,
+) {
     NavHost(
         navController = navController,
-        startDestination = "downloads",
-        modifier = Modifier.fillMaxSize(),
+        startDestination = START_ROUTE,
+        modifier = modifier.fillMaxWidth(),
         enterTransition = {
-            fadeIn(enterEffects) + slideInHorizontally(enterSpatial) { it / 16 }
+            fadeIn(tween(NavFadeMs)) + slideInHorizontally(tween(NavFadeMs)) { it / 12 }
         },
         exitTransition = {
-            fadeOut(exitEffects) + slideOutHorizontally(exitSpatial) { -it / 16 }
+            fadeOut(tween(NavFadeMs / 2)) + slideOutHorizontally(tween(NavFadeMs / 2)) { -it / 12 }
         },
         popEnterTransition = {
-            fadeIn(enterEffects) + slideInHorizontally(enterSpatial) { -it / 16 }
+            fadeIn(tween(NavFadeMs)) + slideInHorizontally(tween(NavFadeMs)) { -it / 12 }
         },
         popExitTransition = {
-            fadeOut(exitEffects) + slideOutHorizontally(exitSpatial) { it / 16 }
+            fadeOut(tween(NavFadeMs / 2)) + slideOutHorizontally(tween(NavFadeMs / 2)) { it / 12 }
         },
     ) {
-        composable("downloads") {
+        composable(START_ROUTE) {
             DownloadsScreen(
                 viewModel = viewModel,
                 onOpenSettings = { navController.navigate("settings") },

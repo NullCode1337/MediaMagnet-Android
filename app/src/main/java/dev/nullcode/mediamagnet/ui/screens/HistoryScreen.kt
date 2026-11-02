@@ -96,9 +96,11 @@ fun HistoryScreen(viewModel: AppViewModel) {
 @Composable
 private fun HistoryCard(records: List<DownloadRecord>, onRemove: () -> Unit) {
     val url = records.firstOrNull { it.url.isNotBlank() }?.url.orEmpty()
-    val host = runCatching { Uri.parse(url).host }.getOrNull()
-        ?: url.take(48).ifBlank { records.first().name }
-    val savedAt = records.maxOf { it.savedAtMs }
+    val host = remember(url, records) {
+        runCatching { Uri.parse(url).host }.getOrNull()
+            ?: url.take(48).ifBlank { records.first().name }
+    }
+    val savedAt = remember(records) { records.maxOf { it.savedAtMs } }
 
     SectionCard(
         title = host,
@@ -129,5 +131,7 @@ private fun HistoryCard(records: List<DownloadRecord>, onRemove: () -> Unit) {
     }
 }
 
-private fun formatTime(ms: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(ms))
+private val timeFormat: DateFormat =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+
+private fun formatTime(ms: Long): String = synchronized(timeFormat) { timeFormat.format(Date(ms)) }
