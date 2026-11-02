@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -45,19 +46,25 @@ fun ToolsScreen(viewModel: AppViewModel) {
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text(
                     text = "Download tools",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = viewModel::loadTools) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null)
-                    Text("Reload")
+                    Text("Reload", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -135,8 +142,8 @@ private fun ToolCard(tool: ToolStatus) {
             Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.small) {
                 Text(
                     text = if (tool.available) "AVAILABLE" else "MISSING",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmallEmphasized,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
         },

@@ -399,7 +399,10 @@ class MediaMagnetEngine private constructor(context: Context) {
         }
 
         val local = json.encodeToJsonElement(_prefs.value.settings).jsonObject
-        val merged = JsonObject(local - "settings_version" + overrides.orEmpty())
+        val merged = JsonObject(
+            local - "settings_version" - "theme_mode" - "amoled_mode" - "accent_mode" -
+                "accent_hue" + overrides.orEmpty(),
+        )
 
         scope.launch {
             try {

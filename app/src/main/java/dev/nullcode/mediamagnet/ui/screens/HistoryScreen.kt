@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import dev.nullcode.mediamagnet.ui.components.StatePill
 import java.text.DateFormat
 import java.util.Date
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HistoryScreen(viewModel: AppViewModel) {
     val prefs by viewModel.prefs.collectAsStateWithLifecycle()
@@ -47,20 +49,16 @@ fun HistoryScreen(viewModel: AppViewModel) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item {
-            Text("Download history", style = MaterialTheme.typography.titleMedium)
-        }
-
         if (jobs.isEmpty()) {
             item {
                 Text(
                     text = "Nothing has been saved on this phone yet.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp),
                 )
             }
         }
@@ -94,6 +92,7 @@ fun HistoryScreen(viewModel: AppViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun HistoryCard(records: List<DownloadRecord>, onRemove: () -> Unit) {
     val url = records.firstOrNull { it.url.isNotBlank() }?.url.orEmpty()

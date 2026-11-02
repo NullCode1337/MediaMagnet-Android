@@ -52,13 +52,24 @@ data class SiteArgument(
     val args: String = "",
 )
 
+object ThemeMode {
+    const val System = "system"
+    const val Light = "light"
+    const val Dark = "dark"
+}
+
+object AccentMode {
+    const val System = "system"
+    const val Custom = "custom"
+}
+
 @Serializable
 data class ServerSettings(
     @SerialName("settings_version") val settingsVersion: Int = 1,
-    @SerialName("dark_mode") val darkMode: Boolean = true,
+    @SerialName("theme_mode") val themeMode: String = ThemeMode.System,
     @SerialName("amoled_mode") val amoledMode: Boolean = false,
-    @SerialName("accent_hue") val accentHue: Int = 260,
-    @SerialName("accent_kind") val accentKind: String = "hue",
+    @SerialName("accent_mode") val accentMode: String = AccentMode.System,
+    @SerialName("accent_hue") val accentHue: Int = 322,
     @SerialName("user_agent") val userAgent: String = "",
     @SerialName("preserve_mtime") val preserveMtime: Boolean = false,
     @SerialName("yt_format") val ytFormat: String = "bv*+ba/b",

@@ -4,23 +4,20 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Cookie
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Dns
@@ -38,19 +35,24 @@ import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,106 +61,133 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.nullcode.mediamagnet.data.AccentMode
 import dev.nullcode.mediamagnet.data.ServerSettings
 import dev.nullcode.mediamagnet.data.SiteArgument
+import dev.nullcode.mediamagnet.data.ThemeMode
 import dev.nullcode.mediamagnet.ui.AppViewModel
 import dev.nullcode.mediamagnet.ui.Connection
 import dev.nullcode.mediamagnet.ui.components.SectionCard
+import dev.nullcode.mediamagnet.ui.theme.AppPalettes
+import dev.nullcode.mediamagnet.ui.theme.supportsDynamicColor
 
 internal val recodeFormats = listOf("", "mp4", "mkv", "webm", "mp3", "m4a", "opus", "flac", "wav")
 
 @Composable
 fun SettingsScreen(onOpen: (String) -> Unit) {
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         item {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(start = 12.dp),
+            SettingsGroup(
+                title = "Configuration",
+                entries = listOf(
+                    SettingsEntryData(Icons.Rounded.Dns, "Server connection", "settings/connection"),
+                    SettingsEntryData(Icons.Rounded.Palette, "Appearance", "settings/appearance"),
+                    SettingsEntryData(Icons.Rounded.Download, "Downloads", "settings/downloads"),
+                    SettingsEntryData(Icons.Rounded.Cookie, "Cookies", "settings/cookies"),
+                ),
+                onOpen = onOpen,
             )
         }
 
         item {
-            SettingsGroup("Configuration") {
-                SettingsEntry(Icons.Rounded.Dns, "Server connection") { onOpen("settings/connection") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.Palette, "Appearance") { onOpen("settings/appearance") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.Download, "Downloads") { onOpen("settings/downloads") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.Cookie, "Cookies") { onOpen("settings/cookies") }
-            }
+            SettingsGroup(
+                title = "Backend",
+                entries = listOf(
+                    SettingsEntryData(Icons.Rounded.Movie, "yt-dlp", "settings/ytdlp"),
+                    SettingsEntryData(Icons.Rounded.Image, "gallery-dl", "settings/gallerydl"),
+                    SettingsEntryData(Icons.Rounded.MusicNote, "spotdl", "settings/spotdl"),
+                    SettingsEntryData(Icons.Rounded.Handyman, "Tools", "settings/tools"),
+                ),
+                onOpen = onOpen,
+            )
         }
 
         item {
-            SettingsGroup("Backend") {
-                SettingsEntry(Icons.Rounded.Movie, "yt-dlp") { onOpen("settings/ytdlp") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.Image, "gallery-dl") { onOpen("settings/gallerydl") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.MusicNote, "spotdl") { onOpen("settings/spotdl") }
-                EntryDivider()
-                SettingsEntry(Icons.Rounded.Handyman, "Tools") { onOpen("settings/tools") }
-            }
-        }
-
-        item {
-            SettingsGroup("About") {
-                SettingsEntry(Icons.Rounded.Info, "About") { onOpen("settings/about") }
-            }
+            SettingsGroup(
+                title = "About",
+                entries = listOf(
+                    SettingsEntryData(Icons.Rounded.Info, "About", "settings/about"),
+                ),
+                onOpen = onOpen,
+            )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsGroup(
+    title: String,
+    entries: List<SettingsEntryData>,
+    onOpen: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleSmallEmphasized,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 12.dp),
+            modifier = Modifier.padding(start = 16.dp),
         )
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 1.dp,
-        ) {
-            Column(content = content)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            entries.forEachIndexed { index, entry ->
+                ListItem(
+                    onClick = { onOpen(entry.route) },
+                    leadingContent = { SettingsIconBadge(entry.icon) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    colors = ListItemDefaults.segmentedColors(),
+                    shapes = ListItemDefaults.segmentedShapes(
+                        index = index,
+                        count = entries.size,
+                    ),
+                ) {
+                    Text(
+                        text = entry.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun SettingsEntry(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun SettingsIconBadge(icon: ImageVector) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.size(40.dp),
     ) {
-        Icon(icon, contentDescription = null)
-        Spacer(Modifier.width(16.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
-@Composable
-private fun EntryDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 20.dp),
-        thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant,
-    )
-}
+private data class SettingsEntryData(
+    val icon: ImageVector,
+    val label: String,
+    val route: String,
+)
 
 @Composable
 fun ConnectionSettingsScreen(viewModel: AppViewModel) {
@@ -168,20 +197,19 @@ fun ConnectionSettingsScreen(viewModel: AppViewModel) {
     var baseUrl by rememberSaveable(prefs.baseUrl) { mutableStateOf(prefs.baseUrl) }
     var token by rememberSaveable(prefs.token) { mutableStateOf(prefs.token) }
 
+    val status = when (val state = connection) {
+        is Connection.Online -> "Connected to MediaMagnet ${state.version}"
+        is Connection.Offline -> "Offline: ${state.message}"
+        Connection.Connecting -> "Connecting…"
+        Connection.Idle -> "Not configured"
+    }
+
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            SectionCard(
-                title = "Server connection",
-                subtitle = when (val state = connection) {
-                    is Connection.Online -> "Connected to MediaMagnet ${state.version}"
-                    is Connection.Offline -> "Offline: ${state.message}"
-                    Connection.Connecting -> "Connecting…"
-                    Connection.Idle -> "Not configured"
-                },
-            ) {
+            SettingsCard(title = "Server", subtitle = status) {
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = { baseUrl = it },
@@ -190,28 +218,44 @@ fun ConnectionSettingsScreen(viewModel: AppViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+        }
+
+        item {
+            SettingsCard(
+                title = "Authentication",
+                subtitle = "Optional. Required only if the server sets a token.",
+            ) {
                 OutlinedTextField(
                     value = token,
                     onValueChange = { token = it },
-                    label = { Text("Bearer token (optional)") },
+                    label = { Text("Bearer token") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            viewModel.setBaseUrl(baseUrl)
-                            viewModel.setToken(token)
-                        },
-                        enabled = baseUrl.isNotBlank(),
-                    ) {
-                        Icon(Icons.Rounded.Save, contentDescription = null)
-                        Text("Save", modifier = Modifier.padding(start = 4.dp))
-                    }
-                    OutlinedButton(onClick = viewModel::refresh) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = null)
-                        Text("Test", modifier = Modifier.padding(start = 4.dp))
-                    }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.setBaseUrl(baseUrl)
+                        viewModel.setToken(token)
+                    },
+                    enabled = baseUrl.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.Save, contentDescription = null)
+                    Text("Save", modifier = Modifier.padding(start = 8.dp))
+                }
+                OutlinedButton(onClick = viewModel::refresh) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null)
+                    Text("Test", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -240,70 +284,69 @@ fun DownloadsSettingsScreen(viewModel: AppViewModel) {
 
     ServerSettingsPage(
         viewModel = viewModel,
-        title = "Download behaviour",
+        title = "Downloads",
         subtitle = "Stored on this phone and sent with every job.",
-        extraItems = {
-            item {
-                SectionCard(
-                    title = "Local storage",
-                    subtitle = "Where finished downloads are saved on this phone",
-                ) {
-                    Text(
-                        text = preferredFolderLabel(prefs.treeUri),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = "Downloads/MediaMagnet keeps a folder in the shared Downloads collection. A picked folder uses Android's Storage Access Framework and its grant is persisted.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { folderPicker.launch(null) }) {
-                            Icon(Icons.Rounded.FolderOpen, contentDescription = null)
-                            Text("Choose folder", modifier = Modifier.padding(start = 4.dp))
-                        }
-                        if (prefs.treeUri != null) {
-                            OutlinedButton(onClick = { viewModel.setTreeUri(null) }) {
-                                Text("Use Downloads")
-                            }
-                        }
-                    }
-                }
-            }
-            item {
-                SectionCard(
-                    title = "Server storage",
-                    subtitle = serverInfo.root ?: "Open the server to read its download root",
-                    trailing = {
-                        IconButton(onClick = viewModel::refreshPaths) {
-                            Icon(Icons.Rounded.Refresh, contentDescription = "Refresh paths")
-                        }
-                    },
-                ) {
-                    val used = serverInfo.usedPercent
-                    if (used != null) {
-                        Text(
-                            text = "Disk usage ${"%.1f".format(used)}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            LinearWavyProgressIndicator(
-                                progress = { (used / 100.0).toFloat().coerceIn(0f, 1f) },
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "Disk usage is unavailable.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        },
     ) { draft, update ->
-        SwitchRow("Preserve source modification time", draft.preserveMtime) {
-            update(draft.copy(preserveMtime = it))
+        SettingsCard(
+            title = "Local storage",
+            subtitle = "Where finished downloads are saved on this phone",
+        ) {
+            Text(
+                text = preferredFolderLabel(prefs.treeUri),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "Downloads/MediaMagnet keeps a folder in the shared Downloads collection. " +
+                    "A picked folder uses Android's Storage Access Framework and its grant is " +
+                    "persisted across reboots.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { folderPicker.launch(null) }) {
+                    Icon(Icons.Rounded.FolderOpen, contentDescription = null)
+                    Text("Choose folder", modifier = Modifier.padding(start = 8.dp))
+                }
+                if (prefs.treeUri != null) {
+                    OutlinedButton(onClick = { viewModel.setTreeUri(null) }) {
+                        Text("Use Downloads")
+                    }
+                }
+            }
+        }
+
+        SettingsCard(
+            title = "Server storage",
+            subtitle = serverInfo.root ?: "Open the server to read its download root",
+            trailing = {
+                IconButton(onClick = viewModel::refreshPaths) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh paths")
+                }
+            },
+        ) {
+            val used = serverInfo.usedPercent
+            if (used != null) {
+                Text(
+                    text = "Disk usage ${"%.1f".format(used)}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                LinearWavyProgressIndicator(
+                    progress = { (used / 100.0).toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Text(
+                    text = "Disk usage is unavailable.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        SettingsCard(title = "Behaviour") {
+            SwitchRow("Preserve source modification time", draft.preserveMtime) {
+                update(draft.copy(preserveMtime = it))
+            }
         }
     }
 }
@@ -315,132 +358,234 @@ fun AppearanceSettingsScreen(viewModel: AppViewModel) {
         title = "Appearance",
         subtitle = "Stored on this phone.",
     ) { draft, update ->
-        SwitchRow("Dark mode", draft.darkMode) { update(draft.copy(darkMode = it)) }
-        SwitchRow("AMOLED black", draft.amoledMode) { update(draft.copy(amoledMode = it)) }
-        OutlinedTextField(
-            value = draft.userAgent,
-            onValueChange = { update(draft.copy(userAgent = it)) },
-            label = { Text("User agent") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = "Accent hue ${draft.accentHue}",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Slider(
-            value = draft.accentHue.toFloat(),
-            onValueChange = { update(draft.copy(accentHue = it.toInt())) },
-            valueRange = 0f..360f,
-        )
-        OptionRow(
-            options = listOf("hue" to "Hue", "black" to "Black", "white" to "White"),
-            selected = draft.accentKind,
-            onSelect = { update(draft.copy(accentKind = it)) },
-        )
+        SettingsCard(
+            title = "Theme",
+            subtitle = if (draft.themeMode == ThemeMode.System) {
+                "Following the system light/dark setting"
+            } else {
+                "Overriding the system light/dark setting"
+            },
+        ) {
+            OptionRow(
+                options = listOf(
+                    ThemeMode.System to "System",
+                    ThemeMode.Light to "Light",
+                    ThemeMode.Dark to "Dark",
+                ),
+                selected = draft.themeMode,
+                onSelect = { update(draft.copy(themeMode = it)) },
+            )
+            SwitchRow("AMOLED black", draft.amoledMode) {
+                update(draft.copy(amoledMode = it))
+            }
+        }
+
+        SettingsCard(
+            title = "Accent color",
+            subtitle = if (draft.accentMode == AccentMode.System) {
+                if (supportsDynamicColor) {
+                    "Using the wallpaper palette Android derives for this device"
+                } else {
+                    "Wallpaper colors need Android 12 or newer; using the default accent"
+                }
+            } else {
+                "Using a custom hue"
+            },
+        ) {
+            OptionRow(
+                options = listOf(
+                    AccentMode.System to "System",
+                    AccentMode.Custom to "Custom",
+                ),
+                selected = draft.accentMode,
+                onSelect = { update(draft.copy(accentMode = it)) },
+            )
+            if (draft.accentMode == AccentMode.Custom) {
+                HueSlider(
+                    hue = draft.accentHue.toFloat(),
+                    onChange = { update(draft.copy(accentHue = it.toInt())) },
+                )
+            }
+        }
+
+        SettingsCard(
+            title = "Network",
+            subtitle = "Sent with every request to the server",
+        ) {
+            OutlinedTextField(
+                value = draft.userAgent,
+                onValueChange = { update(draft.copy(userAgent = it)) },
+                label = { Text("User agent") },
+                placeholder = { Text("Default") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
+}
+
+@Composable
+private fun SettingsCard(
+    title: String,
+    subtitle: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    SectionCard(title = title, subtitle = subtitle, trailing = trailing) {
+        content()
+    }
+}
+
+@Composable
+private fun FieldLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun YtDlpSettingsScreen(viewModel: AppViewModel) {
     ServerSettingsPage(viewModel = viewModel, title = "yt-dlp") { draft, update ->
-        OutlinedTextField(
-            value = draft.ytFormat,
-            onValueChange = { update(draft.copy(ytFormat = it)) },
-            label = { Text("Format selector") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text("Recode to", style = MaterialTheme.typography.bodySmall)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        SettingsCard(
+            title = "Format",
+            subtitle = "What yt-dlp selects and what it converts to",
         ) {
-            recodeFormats.forEach { format ->
-                ToggleButton(
-                    checked = draft.ytRecodeFormat == format,
-                    onCheckedChange = { update(draft.copy(ytRecodeFormat = format)) },
-                ) {
-                    Text(format.ifBlank { "none" })
-                }
+            OutlinedTextField(
+                value = draft.ytFormat,
+                onValueChange = { update(draft.copy(ytFormat = it)) },
+                label = { Text("Format selector") },
+                placeholder = { Text("bv*+ba/b") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            FieldLabel("Recode to")
+            FormatChips(
+                selected = draft.ytRecodeFormat,
+                onSelect = { update(draft.copy(ytRecodeFormat = it)) },
+            )
+            OutlinedTextField(
+                value = draft.ytOutputTemplate,
+                onValueChange = { update(draft.copy(ytOutputTemplate = it)) },
+                label = { Text("Output template") },
+                placeholder = { Text("%(title)s.%(ext)s") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        SettingsCard(title = "Post-processing") {
+            SwitchRow("Embed thumbnail", draft.ytEmbedThumbnail) {
+                update(draft.copy(ytEmbedThumbnail = it))
+            }
+            SwitchRow("Embed subtitles", draft.ytEmbedSubs) {
+                update(draft.copy(ytEmbedSubs = it))
+            }
+            SwitchRow("Restrict filenames", draft.ytRestrictFilenames) {
+                update(draft.copy(ytRestrictFilenames = it))
             }
         }
-        OutlinedTextField(
-            value = draft.ytOutputTemplate,
-            onValueChange = { update(draft.copy(ytOutputTemplate = it)) },
-            label = { Text("Output template") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SwitchRow("Embed thumbnail", draft.ytEmbedThumbnail) {
-            update(draft.copy(ytEmbedThumbnail = it))
+
+        SettingsCard(
+            title = "Arguments",
+            subtitle = "Passed to yt-dlp verbatim",
+        ) {
+            OutlinedTextField(
+                value = draft.ytGlobalArgs,
+                onValueChange = { update(draft.copy(ytGlobalArgs = it)) },
+                label = { Text("Global arguments") },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SiteArgsEditor(
+                label = "yt-dlp",
+                args = draft.ytSiteArgs,
+                onChange = { update(draft.copy(ytSiteArgs = it)) },
+            )
         }
-        SwitchRow("Embed subtitles", draft.ytEmbedSubs) {
-            update(draft.copy(ytEmbedSubs = it))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FormatChips(selected: String, onSelect: (String) -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        recodeFormats.forEach { format ->
+            FilterChip(
+                selected = selected == format,
+                onClick = { onSelect(format) },
+                label = { Text(format.ifBlank { "none" }) },
+            )
         }
-        SwitchRow("Restrict filenames", draft.ytRestrictFilenames) {
-            update(draft.copy(ytRestrictFilenames = it))
-        }
-        OutlinedTextField(
-            value = draft.ytGlobalArgs,
-            onValueChange = { update(draft.copy(ytGlobalArgs = it)) },
-            label = { Text("Global arguments") },
-            minLines = 2,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SiteArgsEditor(
-            label = "yt-dlp",
-            args = draft.ytSiteArgs,
-            onChange = { update(draft.copy(ytSiteArgs = it)) },
-        )
     }
 }
 
 @Composable
 fun GalleryDlSettingsScreen(viewModel: AppViewModel) {
     ServerSettingsPage(viewModel = viewModel, title = "gallery-dl") { draft, update ->
-        OutlinedTextField(
-            value = draft.gdlGlobalArgs,
-            onValueChange = { update(draft.copy(gdlGlobalArgs = it)) },
-            label = { Text("Global arguments") },
-            minLines = 2,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        SiteArgsEditor(
-            label = "gallery-dl",
-            args = draft.gdlSiteArgs,
-            onChange = { update(draft.copy(gdlSiteArgs = it)) },
-        )
+        SettingsCard(
+            title = "Arguments",
+            subtitle = "Passed to gallery-dl verbatim",
+        ) {
+            OutlinedTextField(
+                value = draft.gdlGlobalArgs,
+                onValueChange = { update(draft.copy(gdlGlobalArgs = it)) },
+                label = { Text("Global arguments") },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SiteArgsEditor(
+                label = "gallery-dl",
+                args = draft.gdlSiteArgs,
+                onChange = { update(draft.copy(gdlSiteArgs = it)) },
+            )
+        }
     }
 }
 
 @Composable
 fun SpotdlSettingsScreen(viewModel: AppViewModel) {
     ServerSettingsPage(viewModel = viewModel, title = "spotdl") { draft, update ->
-        OutlinedTextField(
-            value = draft.spotdlFormat,
-            onValueChange = { update(draft.copy(spotdlFormat = it)) },
-            label = { Text("Audio format") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.spotdlBitrate,
-            onValueChange = { update(draft.copy(spotdlBitrate = it)) },
-            label = { Text("Bitrate") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = draft.spotdlGlobalArgs,
-            onValueChange = { update(draft.copy(spotdlGlobalArgs = it)) },
-            label = { Text("Global arguments") },
-            minLines = 2,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        SettingsCard(
+            title = "Audio",
+            subtitle = "Output format and bitrate",
+        ) {
+            OutlinedTextField(
+                value = draft.spotdlFormat,
+                onValueChange = { update(draft.copy(spotdlFormat = it)) },
+                label = { Text("Audio format") },
+                placeholder = { Text("mp3") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = draft.spotdlBitrate,
+                onValueChange = { update(draft.copy(spotdlBitrate = it)) },
+                label = { Text("Bitrate") },
+                placeholder = { Text("320k") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        SettingsCard(
+            title = "Arguments",
+            subtitle = "Passed to spotdl verbatim",
+        ) {
+            OutlinedTextField(
+                value = draft.spotdlGlobalArgs,
+                onValueChange = { update(draft.copy(spotdlGlobalArgs = it)) },
+                label = { Text("Global arguments") },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -456,11 +601,11 @@ fun AboutScreen(viewModel: AppViewModel) {
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            SectionCard(
+            SettingsCard(
                 title = "MediaMagnet for Android",
                 subtitle = "Version ${versionName.ifBlank { "unknown" }}",
             ) {
@@ -472,7 +617,7 @@ fun AboutScreen(viewModel: AppViewModel) {
         }
 
         item {
-            SectionCard(title = "Server") {
+            SettingsCard(title = "Server") {
                 val status = when (val state = connection) {
                     is Connection.Online -> "Connected to MediaMagnet ${state.version}"
                     is Connection.Offline -> "Offline: ${state.message}"
@@ -495,38 +640,49 @@ private fun ServerSettingsPage(
     viewModel: AppViewModel,
     title: String,
     subtitle: String? = null,
-    extraItems: (LazyListScope.() -> Unit)? = null,
     content: @Composable ColumnScope.(ServerSettings, (ServerSettings) -> Unit) -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var draft by remember(settings) { mutableStateOf(settings) }
+    val dirty = draft != settings
 
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        extraItems?.invoke(this)
         item {
-            SectionCard(title = title, subtitle = subtitle) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 content(draft) { draft = it }
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.saveSettings(draft) }, modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = { viewModel.saveSettings(draft) },
+                    enabled = dirty,
+                    modifier = Modifier.weight(1f),
+                ) {
                     Icon(Icons.Rounded.Save, contentDescription = null)
-                    Text("Save settings", modifier = Modifier.padding(start = 4.dp))
+                    Text("Save", modifier = Modifier.padding(start = 8.dp))
                 }
                 OutlinedButton(onClick = { confirmReset = true }) {
                     Icon(Icons.Rounded.RestartAlt, contentDescription = null)
-                    Text("Reset")
+                    Text("Reset", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
         item {
             Text(
-                text = "Settings version ${draft.settingsVersion}",
+                text = if (dirty) {
+                    "Unsaved changes · settings version ${draft.settingsVersion}"
+                } else {
+                    "All changes saved · settings version ${draft.settingsVersion}"
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp),
@@ -618,26 +774,58 @@ internal fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolea
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun HueSlider(hue: Float, onChange: (Float) -> Unit) {
+    val primary = remember(hue) { AppPalettes(hue, monochrome = false).primary[40] }
+    val spectrum = remember {
+        listOf(0f, 60f, 120f, 180f, 240f, 300f, 360f).map { stop ->
+            AppPalettes(stop, monochrome = false).primary[60]
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Slider(
+            value = hue,
+            onValueChange = onChange,
+            valueRange = 0f..360f,
+            colors = SliderDefaults.colors(
+                thumbColor = primary,
+                activeTrackColor = primary,
+            ),
+            modifier = Modifier.drawBehind {
+                val trackHeight = 16.dp.toPx()
+                val top = (size.height - trackHeight) / 2f
+                drawRoundRect(
+                    brush = Brush.horizontalGradient(spectrum),
+                    topLeft = Offset(0f, top),
+                    size = Size(size.width, trackHeight),
+                    cornerRadius = CornerRadius(trackHeight / 2f),
+                    alpha = 0.35f,
+                )
+            },
+        )
+        Text(
+            text = "Hue ${hue.toInt()}°",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun OptionRow(
     options: List<Pair<String, String>>,
     selected: String,
     onSelect: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEach { (value, label) ->
-            ToggleButton(
-                checked = selected == value,
-                onCheckedChange = { onSelect(value) },
-            ) {
-                Text(label)
-            }
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                label = { Text(label) },
+            )
         }
     }
 }

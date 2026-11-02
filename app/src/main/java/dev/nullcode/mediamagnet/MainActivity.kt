@@ -8,7 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nullcode.mediamagnet.ui.AppViewModel
 import dev.nullcode.mediamagnet.ui.MediaMagnetApp
@@ -39,7 +40,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val viewModel: AppViewModel = viewModel()
-            MediaMagnetTheme(darkTheme = isSystemInDarkTheme()) {
+            val settings by viewModel.settings.collectAsStateWithLifecycle()
+            MediaMagnetTheme(
+                themeMode = settings.themeMode,
+                amoled = settings.amoledMode,
+                accentMode = settings.accentMode,
+                accentHue = settings.accentHue.toFloat(),
+            ) {
                 MediaMagnetApp(viewModel = viewModel)
             }
         }
