@@ -7,22 +7,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentPaste
@@ -39,7 +35,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -47,13 +42,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,23 +62,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.nullcode.mediamagnet.data.ServerSettings
 import dev.nullcode.mediamagnet.ui.AppViewModel
 import dev.nullcode.mediamagnet.ui.JobUi
 import dev.nullcode.mediamagnet.ui.components.StatePill
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonObject
 import java.text.DateFormat
 import java.util.Date
-
-private val backends = listOf(
-    null to "Auto",
-    "yt-dlp" to "yt-dlp",
-    "gallery-dl" to "gallery-dl",
-    "spotdl" to "spotdl",
-)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -194,7 +175,7 @@ fun DownloadsScreen(
     }
 
     if (showOptions) {
-        OptionsSheet(
+        JobOptionsSheet(
             draft = draft,
             updateDraft = { draft = it },
             backend = backend,
@@ -204,8 +185,42 @@ fun DownloadsScreen(
             cookieContent = cookieContent,
             onCookieContentChange = { cookieContent = it },
             canStart = url.isNotBlank(),
+            header = { OptionsHeader() },
             onDismiss = { showOptions = false },
             onStart = { start() },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun OptionsHeader() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = CircleShape,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(22.dp))
+            }
+        }
+        Text(
+            text = "Configure before downloading",
+            style = MaterialTheme.typography.headlineSmallEmphasized,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = "Adjust this download only",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -624,283 +639,6 @@ private fun JobCard(
     }
 }
 
-@OptIn(
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3ExpressiveApi::class,
-    ExperimentalLayoutApi::class,
-)
-@Composable
-private fun OptionsSheet(
-    draft: ServerSettings,
-    updateDraft: (ServerSettings) -> Unit,
-    backend: String?,
-    onBackendChange: (String?) -> Unit,
-    cookieDomain: String,
-    onCookieDomainChange: (String) -> Unit,
-    cookieContent: String,
-    onCookieContentChange: (String) -> Unit,
-    canStart: Boolean,
-    onDismiss: () -> Unit,
-    onStart: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .imePadding()
-                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = CircleShape,
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(22.dp))
-                    }
-                }
-                Text(
-                    text = "Configure before downloading",
-                    style = MaterialTheme.typography.headlineSmallEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "Adjust this download only",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            SheetGroup("General") {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    backends.forEach { (value, label) ->
-                        FilterChip(
-                            selected = backend == value,
-                            onClick = { onBackendChange(value) },
-                            label = { Text(label) },
-                        )
-                    }
-                }
-                SwitchRow("Preserve source modification time", draft.preserveMtime) {
-                    updateDraft(draft.copy(preserveMtime = it))
-                }
-                OutlinedTextField(
-                    value = draft.userAgent,
-                    onValueChange = { updateDraft(draft.copy(userAgent = it)) },
-                    label = { Text("User agent") },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            if (backend == null || backend == "yt-dlp") {
-                SheetGroup("yt-dlp") {
-                    OutlinedTextField(
-                        value = draft.ytFormat,
-                        onValueChange = { updateDraft(draft.copy(ytFormat = it)) },
-                        label = { Text("Format selector") },
-                        placeholder = { Text("bv*+ba/b") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = "Recode to",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    ChipRow(
-                        options = recodeFormats.map { it to it.ifBlank { "none" } },
-                        selected = draft.ytRecodeFormat,
-                        onSelect = { updateDraft(draft.copy(ytRecodeFormat = it)) },
-                    )
-                    OutlinedTextField(
-                        value = draft.ytOutputTemplate,
-                        onValueChange = { updateDraft(draft.copy(ytOutputTemplate = it)) },
-                        label = { Text("Output template") },
-                        placeholder = { Text("%(title)s.%(ext)s") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SwitchRow("Embed thumbnail", draft.ytEmbedThumbnail) {
-                        updateDraft(draft.copy(ytEmbedThumbnail = it))
-                    }
-                    SwitchRow("Embed subtitles", draft.ytEmbedSubs) {
-                        updateDraft(draft.copy(ytEmbedSubs = it))
-                    }
-                    SwitchRow("Restrict filenames", draft.ytRestrictFilenames) {
-                        updateDraft(draft.copy(ytRestrictFilenames = it))
-                    }
-                    OutlinedTextField(
-                        value = draft.ytGlobalArgs,
-                        onValueChange = { updateDraft(draft.copy(ytGlobalArgs = it)) },
-                        label = { Text("Global arguments") },
-                        minLines = 2,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SiteArgsEditor(
-                        label = "yt-dlp",
-                        args = draft.ytSiteArgs,
-                        onChange = { updateDraft(draft.copy(ytSiteArgs = it)) },
-                    )
-                }
-            }
-
-            if (backend == null || backend == "gallery-dl") {
-                SheetGroup("gallery-dl") {
-                    OutlinedTextField(
-                        value = draft.gdlGlobalArgs,
-                        onValueChange = { updateDraft(draft.copy(gdlGlobalArgs = it)) },
-                        label = { Text("Global arguments") },
-                        minLines = 2,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SiteArgsEditor(
-                        label = "gallery-dl",
-                        args = draft.gdlSiteArgs,
-                        onChange = { updateDraft(draft.copy(gdlSiteArgs = it)) },
-                    )
-                }
-            }
-
-            if (backend == null || backend == "spotdl") {
-                SheetGroup("spotdl") {
-                    OutlinedTextField(
-                        value = draft.spotdlFormat,
-                        onValueChange = { updateDraft(draft.copy(spotdlFormat = it)) },
-                        label = { Text("Audio format") },
-                        placeholder = { Text("mp3") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = draft.spotdlBitrate,
-                        onValueChange = { updateDraft(draft.copy(spotdlBitrate = it)) },
-                        label = { Text("Bitrate") },
-                        placeholder = { Text("320k") },
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = draft.spotdlGlobalArgs,
-                        onValueChange = { updateDraft(draft.copy(spotdlGlobalArgs = it)) },
-                        label = { Text("Global arguments") },
-                        minLines = 2,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            SheetGroup("Cookies") {
-                OutlinedTextField(
-                    value = cookieDomain,
-                    onValueChange = onCookieDomainChange,
-                    label = { Text("Cookie domain (optional)") },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = cookieContent,
-                    onValueChange = onCookieContentChange,
-                    label = { Text("Cookie content (Netscape or JSON)") },
-                    minLines = 2,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = onStart,
-                    enabled = canStart,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = ButtonDefaults.LargeContentPadding,
-                ) {
-                    Icon(Icons.Rounded.Download, contentDescription = null)
-                    Text(
-                        text = "Download",
-                        style = MaterialTheme.typography.labelLargeEmphasized,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun SheetGroup(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLargeEmphasized,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        content()
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ChipRow(
-    options: List<Pair<String, String>>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEach { (value, label) ->
-            FilterChip(
-                selected = selected == value,
-                onClick = { onSelect(value) },
-                label = { Text(label) },
-            )
-        }
-    }
-}
-
 private data class LinkPreview(val title: String, val subtitle: String, val icon: ImageVector)
 
 private fun previewFor(raw: String): LinkPreview {
@@ -934,29 +672,3 @@ private val timeFormat: DateFormat =
 
 private fun formatTime(ms: Long): String = synchronized(timeFormat) { timeFormat.format(Date(ms)) }
 
-private val jobJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-
-private val commonKeys = listOf("user_agent", "preserve_mtime")
-private val ytDlpKeys = listOf(
-    "yt_format",
-    "yt_recode_format",
-    "yt_output_template",
-    "yt_embed_thumbnail",
-    "yt_embed_subs",
-    "yt_restrict_filenames",
-    "yt_global_args",
-    "yt_site_args",
-)
-private val galleryDlKeys = listOf("gdl_global_args", "gdl_site_args")
-private val spotdlKeys = listOf("spotdl_format", "spotdl_bitrate", "spotdl_global_args")
-
-private fun jobOverrides(draft: ServerSettings, backend: String?): String {
-    val element = jobJson.encodeToJsonElement(draft).jsonObject
-    val keys = buildList {
-        addAll(commonKeys)
-        if (backend == null || backend == "yt-dlp") addAll(ytDlpKeys)
-        if (backend == null || backend == "gallery-dl") addAll(galleryDlKeys)
-        if (backend == null || backend == "spotdl") addAll(spotdlKeys)
-    }
-    return JsonObject(element.filterKeys { it in keys }).toString()
-}

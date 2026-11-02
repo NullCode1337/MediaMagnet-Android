@@ -80,6 +80,7 @@ import dev.nullcode.mediamagnet.ui.screens.DownloadsScreen
 import dev.nullcode.mediamagnet.ui.screens.DownloadsSettingsScreen
 import dev.nullcode.mediamagnet.ui.screens.GalleryDlSettingsScreen
 import dev.nullcode.mediamagnet.ui.screens.HistoryScreen
+import dev.nullcode.mediamagnet.ui.screens.ShareOptionsSheet
 import dev.nullcode.mediamagnet.ui.screens.SettingsScreen
 import dev.nullcode.mediamagnet.ui.screens.SpotdlSettingsScreen
 import dev.nullcode.mediamagnet.ui.screens.ToolsScreen
@@ -118,8 +119,13 @@ private fun titleFor(route: String): String = when (route) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MediaMagnetApp(viewModel: AppViewModel) {
+fun MediaMagnetApp(
+    viewModel: AppViewModel,
+    sharedLink: SharedLink? = null,
+    onSharedLinkConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: START_ROUTE
@@ -198,6 +204,22 @@ fun MediaMagnetApp(viewModel: AppViewModel) {
             TransfersHeader(viewModel)
             AppNavHost(navController, viewModel, Modifier.weight(1f))
         }
+    }
+
+    LaunchedEffect(sharedLink) {
+        if (sharedLink != null) navController.navigateTopLevel(START_ROUTE)
+    }
+
+    if (sharedLink != null) {
+        ShareOptionsSheet(
+            shared = sharedLink,
+            initialSettings = settings,
+            onDismiss = onSharedLinkConsumed,
+            onStart = { url, backend, overrides, domain, content ->
+                viewModel.startDownload(url, backend, overrides, domain, content)
+                onSharedLinkConsumed()
+            },
+        )
     }
 }
 

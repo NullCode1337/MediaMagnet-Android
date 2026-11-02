@@ -36,3 +36,5 @@ data class ServerInfo(
 )
 
 data class UiMessage(val text: String, val isError: Boolean)
+
+data class SharedLink(val url: String, val id: Long = System.nanoTime())
